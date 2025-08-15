@@ -24,7 +24,7 @@ def ler_mapa(path, size):
                 mapa.append([x.strip() for x in linha.split(',')])
     # Ajusta tamanho se necessário
     if len(mapa) != size:
-        raise ValueError(f"Mapa {path} não tem tamanho {size}x{size}")
+        raise ValueError(f"Mapa {path} não tem tamanho {size}x{size}")    
     return mapa
 
 def print_mapa(mapa, caminho=None):
@@ -92,18 +92,23 @@ def main():
     masmorra2 = ler_mapa('Masmorra 2.txt', 28)
     masmorra3 = ler_mapa('Masmorra 3.txt', 28)
 
-    # Posições fixas
-    start = (25, 28)  # Casa do Link
-    lost_woods = (7, 6)  # Entrada de Lost Woods
-
-    # Localiza entradas das masmorras e lost woods
+    # Localiza pontos de interesse no mapa (Link, Entradas de Masmorra, Lost Woods)
+    start = None
     entradas = []
+    lost_woods = None
+
     for i in range(42):
         for j in range(42):
-            if mapa[i][j] == 'MA':
+            if mapa[i][j] == 'L':      # Encontra a posição do Link
+                start = (i, j)
+            elif mapa[i][j] == 'MA':   # Encontra as entradas das masmorras
                 entradas.append((i, j))
-            if mapa[i][j] == 'LW':
+            elif mapa[i][j] == 'LW':   # Encontra a entrada de Lost Woods
                 lost_woods = (i, j)
+
+    # Validação para garantir que os pontos cruciais foram encontrados
+    if start is None or lost_woods is None:
+        raise ValueError("Não foi possível encontrar a posição inicial 'L' ou 'LW' no mapa.")
 
     # Localiza pingentes nas masmorras
     def find_pingente(masmorra):
