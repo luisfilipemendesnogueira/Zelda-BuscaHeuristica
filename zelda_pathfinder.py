@@ -17,46 +17,41 @@ MASMORRA_COST = 10  # Caminho claro dentro das masmorras
 
 def ler_mapa(path, size):
     """lê um mapa de arquivo texto e retorna uma matriz."""
-    # (Função original sem alterações)
     mapa = []
-    # Simulando a leitura de arquivos, já que não temos os .txt
-    # Em um ambiente real, esta função funcionaria com os arquivos
     try:
-        with open(path, 'r') as f:
+        with open(path, 'r', encoding='utf-8') as f:
             for linha in f:
                 linha = linha.strip()
                 if linha:
                     mapa.append([x.strip() for x in linha.split(',')])
     except FileNotFoundError:
-        print(f"Aviso: Arquivo '{path}' não encontrado. O programa pode falhar se depender dele.")
-        return [[] for _ in range(size)] # Retorna matriz vazia para evitar crash
+        print(f"Aviso: Arquivo '{path}' não encontrado. O programa pode falhar.")
+        return [[] for _ in range(size)] 
         
-    if len(mapa) != size and len(mapa) != 0:
+    if len(mapa) != size and len(mapa) > 0:
         raise ValueError(f"Mapa {path} não tem tamanho {size}x{size}")
     return mapa
 
 def print_mapa(mapa, caminho=None):
     """Imprime um mapa com um caminho destacado."""
-    # (Função original sem alterações)
     caminho_set = set(caminho) if caminho else set()
     for i, linha in enumerate(mapa):
         out = ''
         for j, cel in enumerate(linha):
             if (i, j) in caminho_set:
-                out += 'L '  # Link/caminho
+                # Usando código de cor ANSI para Amarelo no terminal
+                out += '\033[93mL\033[0m  '
             else:
-                out += f'{cel:<2} ' # Ajuste para melhor alinhamento
+                out += f'{cel:<2} '
         print(out)
     print()
 
 def heuristica(a, b):
     """Distância de Manhattan (sem diagonais)."""
-    # (Função original sem alterações)
     return abs(a[0] - b[0]) + abs(a[1] - b[1])
 
 def vizinhos(pos, size):
     """Retorna vizinhos válidos (vertical/horizontal)."""
-    # (Função original sem alterações)
     x, y = pos
     for dx, dy in [(-1,0),(1,0),(0,-1),(0,1)]:
         nx, ny = x+dx, y+dy
@@ -65,8 +60,11 @@ def vizinhos(pos, size):
 
 def a_star(mapa, start, goal, terrain_costs, walkable=None):
     """Busca A* genérica."""
-    # (Função original sem alterações)
     size = len(mapa)
+    if not (0 <= start[0] < size and 0 <= start[1] < len(mapa[0]) and
+            0 <= goal[0] < size and 0 <= goal[1] < len(mapa[0])):
+        return None, float('inf')
+
     open_set = []
     heapq.heappush(open_set, (0, start))
     came_from = {}
@@ -81,7 +79,7 @@ def a_star(mapa, start, goal, terrain_costs, walkable=None):
                 current = came_from[current]
                 caminho.append(current)
             caminho.reverse()
-            return caminho, g_score[goal]
+            return caminho, g_score.get(goal, 0)
 
         for neighbor in vizinhos(current, size):
             x, y = neighbor
@@ -89,8 +87,8 @@ def a_star(mapa, start, goal, terrain_costs, walkable=None):
             if walkable and cel not in walkable:
                 continue
             cost = terrain_costs.get(cel, 9999)
-            tentative_g = g_score[current] + cost
-            if neighbor not in g_score or tentative_g < g_score[neighbor]:
+            tentative_g = g_score.get(current, float('inf')) + cost
+            if tentative_g < g_score.get(neighbor, float('inf')):
                 came_from[neighbor] = current
                 g_score[neighbor] = tentative_g
                 f_score[neighbor] = tentative_g + heuristica(neighbor, goal)
@@ -104,76 +102,61 @@ def main():
     masmorra2 = ler_mapa('Masmorra 2.txt', 28)
     masmorra3 = ler_mapa('Masmorra 3.txt', 28)
     
-    # Validação simples para ver se os mapas foram carregados
-    if not mapa or not masmorra1 or not masmorra2 or not masmorra3:
+    if not all(m for m in [mapa, masmorra1, masmorra2, masmorra3]):
         print("Erro: Um ou mais arquivos de mapa não puderam ser lidos. Encerrando.")
         return
 
     # Localiza pontos de interesse no mapa
-    start = None
-    entradas = []
-    lost_woods = None
-    for i in range(42):
-        for j in range(42):
-            if mapa[i][j] == 'L':
-                start = (i, j)
-            elif mapa[i][j] == 'MA':
-                entradas.append((i, j))
-            elif mapa[i][j] == 'LW':
-                lost_woods = (i, j)
-    if start is None or lost_woods is None:
-        raise ValueError("Não foi possível encontrar a posição inicial 'L' ou 'LW' no mapa.")
+    start = next((i, j) for i, r in enumerate(mapa) for j, c in enumerate(r) if c == 'L')
+    lost_woods = next((i, j) for i, r in enumerate(mapa) for j, c in enumerate(r) if c == 'LW')
+    entradas = sorted([(i, j) for i, r in enumerate(mapa) for j, c in enumerate(r) if c == 'MA'])
+    
+    if start is None or lost_woods is None or len(entradas) < 3:
+        raise ValueError("Não foi possível encontrar todos os pontos de interesse no mapa.")
 
-    # Localiza pingentes nas masmorras
-    def find_pingente(masmorra):
-        for i in range(28):
-            for j in range(28):
-                if masmorra[i][j] == 'P':
-                    return (i, j)
-        return None
-    pingentes = [find_pingente(masmorra1), find_pingente(masmorra2), find_pingente(masmorra3)]
+    pingentes = [next((i, j) for i, r in enumerate(m) for j, c in enumerate(r) if c == 'P') for m in [masmorra1, masmorra2, masmorra3]]
 
-    # Estratégia: múltiplas buscas
     menor_custo = float('inf')
     melhor_ordem = None
     melhor_caminho = None
-    melhor_percurso_masmorras = [] ### ALTERAÇÃO: Variável para guardar os detalhes das masmorras
+    melhor_percurso_masmorras = []
 
     for ordem in permutations([0,1,2]):
         pos = start
         total_caminho = []
         total_custo = 0
-        percurso_masmorras_atual = [] ### ALTERAÇÃO: Lista temporária para o percurso da permutação atual
+        percurso_masmorras_atual = []
 
+        mapas_ordenados = [masmorra1, masmorra2, masmorra3]
         entradas_ordem = [entradas[i] for i in ordem]
         pingentes_ordem = [pingentes[i] for i in ordem]
-        masmorras_ordem = [[masmorra1, masmorra2, masmorra3][i] for i in ordem]
+        masmorras_ordem = [mapas_ordenados[i] for i in ordem]
 
         caminho_inviavel = False
         for idx in range(3):
             caminho, custo = a_star(mapa, pos, entradas_ordem[idx], TERRAIN_COSTS)
             if caminho is None:
                 caminho_inviavel = True; break
+            
+            ### CORREÇÃO AQUI ###
+            # Usando a lógica original de concatenação de listas que é mais segura
             total_caminho += caminho[1:] if total_caminho else caminho
             total_custo += custo
             
-            entrada_masmorra = None
-            for i in range(28):
-                for j in range(28):
-                    if masmorras_ordem[idx][i][j] == 'E':
-                        entrada_masmorra = (i, j)
+            entrada_masmorra = next((i, j) for i, r in enumerate(masmorras_ordem[idx]) for j, c in enumerate(r) if c == 'E')
             
-            caminho_m, custo_m = a_star(masmorras_ordem[idx], entrada_masmorra, pingentes_ordem[idx], {'CC': MASMORRA_COST, 'P': MASMORRA_COST, 'E': MASMORRA_COST}, walkable={'CC', 'P', 'E'})
+            custos_dungeon = {'CC': MASMORRA_COST, 'P': MASMORRA_COST, 'E': MASMORRA_COST}
+            walkable_dungeon = {'CC', 'P', 'E'}
+            
+            caminho_m, custo_m = a_star(masmorras_ordem[idx], entrada_masmorra, pingentes_ordem[idx], custos_dungeon, walkable_dungeon)
             if caminho_m is None:
                 caminho_inviavel = True; break
-            total_custo += custo_m
+            
+            caminho_m2 = caminho_m[::-1]
+            custo_m2 = custo_m
+            
+            total_custo += custo_m + custo_m2
 
-            caminho_m2, custo_m2 = a_star(masmorras_ordem[idx], pingentes_ordem[idx], entrada_masmorra, {'CC': MASMORRA_COST, 'P': MASMORRA_COST, 'E': MASMORRA_COST}, walkable={'CC', 'P', 'E'})
-            if caminho_m2 is None:
-                caminho_inviavel = True; break
-            total_custo += custo_m2
-
-            ### ALTERAÇÃO: Armazena os detalhes do percurso desta masmorra
             percurso_masmorras_atual.append({
                 'id': ordem[idx] + 1,
                 'mapa': masmorras_ordem[idx],
@@ -181,14 +164,14 @@ def main():
                 'caminho_ida': caminho_m,
                 'caminho_volta': caminho_m2
             })
-            
             pos = entradas_ordem[idx]
         
         if caminho_inviavel: continue
 
         caminho, custo = a_star(mapa, pos, lost_woods, TERRAIN_COSTS)
-        if caminho is None:
-            continue
+        if caminho is None: continue
+        
+        ### CORREÇÃO AQUI ###
         total_caminho += caminho[1:]
         total_custo += custo
         
@@ -196,7 +179,7 @@ def main():
             menor_custo = total_custo
             melhor_ordem = ordem
             melhor_caminho = total_caminho
-            melhor_percurso_masmorras = percurso_masmorras_atual ### ALTERAÇÃO: Salva os detalhes das masmorras da melhor rota
+            melhor_percurso_masmorras = percurso_masmorras_atual
 
     # Exibe resultado
     print("="*40)
@@ -205,9 +188,8 @@ def main():
     print(f"Melhor ordem de masmorras: {[x+1 for x in melhor_ordem]}")
     print(f"Custo total da jornada: {menor_custo}")
     print("\nCaminho percorrido (mapa principal):")
-    print_mapa(mapa, [p for p in melhor_caminho if p and p[0] < 42 and p[1] < 42])
+    print_mapa(mapa, melhor_caminho)
 
-    ### ALTERAÇÃO: Exibe os detalhes do percurso nas masmorras
     print("\n" + "="*40)
     print("   Detalhes do Percurso nas Masmorras")
     print("="*40)
