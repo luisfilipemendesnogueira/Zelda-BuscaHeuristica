@@ -104,7 +104,6 @@ class ZeldaPathFinder:
         return img.subsample(int(scale) if scale > 1 else 1)
         
     def setup_ui(self):
-        # UI Setup
         main_frame = ttk.Frame(self.root, padding="10")
         main_frame.pack(fill=tk.BOTH, expand=True)
         control_frame = ttk.Frame(main_frame)
@@ -130,7 +129,7 @@ class ZeldaPathFinder:
         self.canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         self.cell_size = 15
         self.mapa = self.masmorra1 = self.masmorra2 = self.masmorra3 = None
-        self.melhor_percurso_completo = None # Estrutura de dados principal
+        self.melhor_percurso_completo = None
         self.animando = False
         
     def carregar_mapas(self):
@@ -204,10 +203,13 @@ class ZeldaPathFinder:
                     entrada_m = next((i, j) for i, r in enumerate(masmorra_atual) for j, c in enumerate(r) if c == 'E')
                     custos_m = {'CC': self.masmorra_cost, 'P': self.masmorra_cost, 'E': self.masmorra_cost}
                     walkable_m = {'CC', 'P', 'E'}
+                    
                     caminho_ida, custo_ida = a_star(masmorra_atual, entrada_m, pingentes[masmorra_idx], custos_m, walkable_m)
                     if caminho_ida is None: caminho_inviavel = True; break
-                    caminho_volta, custo_volta = a_star(masmorra_atual, pingentes[masmorra_idx], entrada_m, custos_m, walkable_m)
-                    if caminho_volta is None: caminho_inviavel = True; break
+                    
+                    # Para forçar o retorno pelo mesmo caminho, simplesmente invertemos o de ida.
+                    caminho_volta = caminho_ida[::-1]
+                    custo_volta = custo_ida
                     
                     total_custo_atual += custo_ida + custo_volta
                     percurso_completo_atual.append({
@@ -281,7 +283,7 @@ class ZeldaPathFinder:
                     time.sleep(0.5)
 
                     offset_x = (len(self.mapa) + 3) * self.cell_size
-                    offset_y = 5 * self.cell_size # Posição vertical fixa
+                    offset_y = 5 * self.cell_size
                     tag_masmorra = f"dungeon_display_{masmorra_info['id']}"
 
                     self.root.after(0, self.desenhar_mapa, masmorra_info['mapa'], offset_x, offset_y, tag_masmorra)
