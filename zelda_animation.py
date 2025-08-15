@@ -11,13 +11,13 @@ class ZeldaPathFinder:
         self.root = root
         self.root.title("Zelda - Caminho Otimizado de Link")
         self.root.geometry("1200x800")
-        
+
         # Imagens dos personagens
         self.lost_woods_img = self.resize_image(tk.PhotoImage(file='LW.png'), 12)
         self.ma_img = self.resize_image(tk.PhotoImage(file='MA.png'), 10)
         self.ms_img = self.resize_image(tk.PhotoImage(file='MS.png'), 12)
         self.link_img = self.resize_image(tk.PhotoImage(file='Link.png'), 25)
-        
+
         # Cores dos terrenos
         self.cores = {
             'G': '#92d050',    # Verde claro - Grama
@@ -34,76 +34,77 @@ class ZeldaPathFinder:
             'P': '#FF1493',    # Deep Pink - Pingente
             'E': '#00FF00',    # Lime - Entrada da masmorra
         }
-        
+
         # Custos dos terrenos
         self.terrain_costs = {
             'G': 10, 'S': 20, 'F': 100, 'M': 150, 'A': 180, 'LW': 10, 'MA': 20
         }
         self.masmorra_cost = 10
-        
+
         self.setup_ui()
         self.carregar_mapas()
-        
+
     def resize_image(self, img, target_size):
         """Redimensiona imagem mantendo aspect ratio para o tamanho máximo especificado"""
         width = img.width()
         height = img.height()
-        
+
         # Calcula o fator de escala
         scale = max(width/target_size, height/target_size)
-        
+
         # Aplica o subsample
         return img.subsample(int(scale))    
-        
+
     def setup_ui(self):
         # Frame principal
         main_frame = ttk.Frame(self.root)
         main_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
-        
+
         # Frame de controles
         control_frame = ttk.Frame(main_frame)
         control_frame.pack(fill=tk.X, pady=(0, 10))
-        
+
         # Botões
-        ttk.Button(control_frame, text="Carregar Mapas", 
+        ttk.Button(control_frame, text="Carregar Mapas",
                   command=self.carregar_mapas).pack(side=tk.LEFT, padx=(0, 10))
-        ttk.Button(control_frame, text="Calcular Melhor Caminho", 
+        ttk.Button(control_frame, text="Calcular Melhor Caminho",
                   command=self.calcular_caminho).pack(side=tk.LEFT, padx=(0, 10))
-        ttk.Button(control_frame, text="Animar Caminho", 
+        ttk.Button(control_frame, text="Animar Caminho",
                   command=self.animar_caminho).pack(side=tk.LEFT, padx=(0, 10))
-        ttk.Button(control_frame, text="Parar Animação", 
-                  command=self.parar_animacao).pack(side=tk.LEFT, padx=(0, 10))
-        
+
         # Frame de informações
         info_frame = ttk.Frame(main_frame)
         info_frame.pack(fill=tk.X, pady=(0, 10))
-        
+
         # Label de informações
         self.info_label = ttk.Label(info_frame, text="Clique em 'Carregar Mapas' para começar")
         self.info_label.pack(side=tk.LEFT)
-        
+
         # Label de custos
         self.custos_label = ttk.Label(info_frame, text="")
         self.custos_label.pack(side=tk.RIGHT)
-        
-        # Frame do canvas
-        canvas_frame = ttk.Frame(main_frame)
-        canvas_frame.pack(fill=tk.BOTH, expand=True)
-        
-        # Canvas com scrollbars
-        self.canvas = tk.Canvas(canvas_frame, bg='white')
-        h_scroll = ttk.Scrollbar(canvas_frame, orient=tk.HORIZONTAL, command=self.canvas.xview)
-        v_scroll = ttk.Scrollbar(canvas_frame, orient=tk.VERTICAL, command=self.canvas.yview)
-        
-        self.canvas.configure(xscrollcommand=h_scroll.set, yscrollcommand=v_scroll.set)
-        
-        h_scroll.pack(side=tk.BOTTOM, fill=tk.X)
-        v_scroll.pack(side=tk.RIGHT, fill=tk.Y)
-        self.canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-        
-        # Tamanho das células
+
+        # Notebook (abas)
+        self.notebook = ttk.Notebook(main_frame)
+        self.notebook.pack(fill=tk.BOTH, expand=True)
+
+        # Canvas de cada aba
+        self.canvas_tabs = []
+        self.frames_tabs = []
         self.cell_size = 15
-        
+
+        tab_names = ["Mapa Principal", "Masmorra 1", "Masmorra 2", "Masmorra 3"]
+        for i in range(4):
+            frame = ttk.Frame(self.notebook)
+            canvas = tk.Canvas(frame, bg='white')
+            canvas.pack(fill=tk.BOTH, expand=True)
+            self.notebook.add(frame, text=tab_names[i])
+            self.canvas_tabs.append(canvas)
+            self.frames_tabs.append(frame)
+
+        # Evento para desenhar o mapa/masmorra ao trocar de aba
+        self.notebook.bind("<<NotebookTabChanged>>", self.aba_trocada)
+
         # Variáveis de controle
         self.mapa = None
         self.masmorra1 = None
@@ -115,6 +116,17 @@ class ZeldaPathFinder:
         self.custos_masmorras = [0, 0, 0]
         self.caminhos_masmorras = [[], [], []]
         self.animando = False
+
+    def aba_trocada(self, event=None):
+        aba = self.notebook.index(self.notebook.select())
+        if aba == 0:
+            self.desenhar_mapa()
+        elif aba == 1 and self.masmorra1:
+            self.desenhar_masmorra(self.masmorra1, 0)
+        elif aba == 2 and self.masmorra2:
+            self.desenhar_masmorra(self.masmorra2, 1)
+        elif aba == 3 and self.masmorra3:
+            self.desenhar_masmorra(self.masmorra3, 2)
         
     def carregar_mapas(self):
         """Carrega os mapas a partir dos arquivos"""
@@ -143,70 +155,56 @@ class ZeldaPathFinder:
             self.info_label.config(text="Erro ao carregar mapas")
     
     def desenhar_mapa(self):
-        """Desenha o mapa principal no canvas"""
+        """Desenha o mapa principal na aba 0"""
         if not self.mapa:
             return
-            
-        self.canvas.delete("all")
-        
+        canvas = self.canvas_tabs[0]
+        canvas.delete("all")
         for i, linha in enumerate(self.mapa):
             for j, cel in enumerate(linha):
                 x1 = j * self.cell_size
                 y1 = i * self.cell_size
                 x2 = x1 + self.cell_size
                 y2 = y1 + self.cell_size
-                
                 cor = self.cores.get(cel, '#FFFFFF')
-                
-                self.canvas.create_rectangle(x1, y1, x2, y2, 
-                                           fill=cor, outline='gray', width=0.5)
-                
-                # Adiciona texto para elementos especiais
+                canvas.create_rectangle(x1, y1, x2, y2,
+                                       fill=cor, outline='gray', width=0.5)
                 if cel == 'LW':
                     img_x = x1 + self.cell_size//1.8
                     img_y = y2 - 5
-                    self.canvas.create_image(img_x, img_y, image=self.lost_woods_img, anchor=tk.CENTER)
-                    
+                    canvas.create_image(img_x, img_y, image=self.lost_woods_img, anchor=tk.CENTER)
                 elif cel == 'MA':
-                    # Entrada de Masmorra
                     img_x = x1 + self.cell_size//2
                     img_y = y2 - 5
-                    self.canvas.create_image(img_x, img_y, image=self.ma_img, anchor=tk.CENTER)
-                    
+                    canvas.create_image(img_x, img_y, image=self.ma_img, anchor=tk.CENTER)
                 elif cel == 'MS':
-                    # Master Sword
                     img_x = x1 + self.cell_size//2
                     img_y = y2 - 5
-                    self.canvas.create_image(img_x, img_y, image=self.ms_img, anchor=tk.CENTER)
-                    
+                    canvas.create_image(img_x, img_y, image=self.ms_img, anchor=tk.CENTER)
                 elif cel == 'L':
-                    # Link
                     img_x = x1 + self.cell_size//2
                     img_y = y2 - 5
-                    self.canvas.create_image(img_x, img_y, image=self.link_img, anchor=tk.CENTER)
-        
-        # Configura scroll region
-        self.canvas.configure(scrollregion=self.canvas.bbox("all"))
-        
-    def desenhar_masmorra(self, masmorra, offset_x=0, offset_y=0):
-        """Desenha uma masmorra no canvas com offset"""
+                    canvas.create_image(img_x, img_y, image=self.link_img, anchor=tk.CENTER)
+        canvas.configure(scrollregion=canvas.bbox("all"))
+
+    def desenhar_masmorra(self, masmorra, idx):
+        """Desenha uma masmorra na aba idx+1"""
+        canvas = self.canvas_tabs[idx+1]
+        canvas.delete("all")
         for i, linha in enumerate(masmorra):
             for j, cel in enumerate(linha):
-                x1 = j * self.cell_size + offset_x
-                y1 = i * self.cell_size + offset_y
+                x1 = j * self.cell_size
+                y1 = i * self.cell_size
                 x2 = x1 + self.cell_size
                 y2 = y1 + self.cell_size
-                
                 cor = self.cores.get(cel, '#FFFFFF')
-                
-                self.canvas.create_rectangle(x1, y1, x2, y2, 
-                                           fill=cor, outline='gray', width=0.5)
-                
-                # Adiciona texto para elementos especiais
+                canvas.create_rectangle(x1, y1, x2, y2,
+                                       fill=cor, outline='gray', width=0.5)
                 if cel in ['P', 'E', 'CC']:
-                    self.canvas.create_text(x1 + self.cell_size//2, y1 + self.cell_size//2,
-                                          text=cel, font=('Arial', 6), fill='black')
-    
+                    canvas.create_text(x1 + self.cell_size//2, y1 + self.cell_size//2,
+                                      text=cel, font=('Arial', 6), fill='black')
+        canvas.configure(scrollregion=canvas.bbox("all"))
+
     def encontrar_posicao(self, mapa, simbolo):
         """Encontra a posição de um símbolo no mapa"""
         for i, linha in enumerate(mapa):
@@ -365,182 +363,132 @@ class ZeldaPathFinder:
             self.info_label.config(text="Erro no cálculo do caminho")
     
     def desenhar_caminho(self):
-        """Desenha o caminho no mapa"""
-        if not self.melhor_caminho:
-            return
-        
-        # Redesenha o mapa
-        self.desenhar_mapa()
-        
-        # Desenha o caminho principal
-        caminho_set = set(self.melhor_caminho)
-        for i, j in self.melhor_caminho:
-            if 0 <= i < 42 and 0 <= j < 42:  # Apenas no mapa principal
+        """Desenha o caminho na aba atualmente aberta"""
+        aba = self.notebook.index(self.notebook.select())
+        if aba == 0:
+            if not self.melhor_caminho:
+                return
+            self.desenhar_mapa()
+            canvas = self.canvas_tabs[0]
+            for i, j in self.melhor_caminho:
                 x1 = j * self.cell_size
                 y1 = i * self.cell_size
                 x2 = x1 + self.cell_size
                 y2 = y1 + self.cell_size
-                
-                # Marca o caminho com uma cor especial
-                self.canvas.create_rectangle(x1, y1, x2, y2, 
-                                           fill=self.cores['L'], outline='red', width=2)
-        
-        # Marca posição inicial (Link)
-        if self.melhor_caminho:
-            start_i, start_j = self.melhor_caminho[0]
-            x = start_j * self.cell_size + self.cell_size // 2
-            y = start_i * self.cell_size + self.cell_size // 2
-            self.canvas.create_oval(x-5, y-5, x+5, y+5, fill='green', outline='darkgreen', width=2)
-            self.canvas.create_text(x, y, text="L", font=('Arial', 8, 'bold'), fill='white')
-    
+                canvas.create_rectangle(x1, y1, x2, y2,
+                                       fill=self.cores['L'], outline='red', width=2)
+            # Marca posição inicial (Link)
+            if self.melhor_caminho:
+                start_i, start_j = self.melhor_caminho[0]
+                x = start_j * self.cell_size + self.cell_size // 2
+                y = start_i * self.cell_size + self.cell_size // 2
+                canvas.create_oval(x-5, y-5, x+5, y+5, fill='green', outline='darkgreen', width=2)
+                canvas.create_text(x, y, text="L", font=('Arial', 8, 'bold'), fill='white')
+        elif aba in [1,2,3]:
+            idx = aba-1
+            caminho = self.caminhos_masmorras[idx] if self.caminhos_masmorras[idx] else None
+            masmorra = [self.masmorra1, self.masmorra2, self.masmorra3][idx]
+            if not caminho or not masmorra:
+                return
+            self.desenhar_masmorra(masmorra, idx)
+            canvas = self.canvas_tabs[aba]
+            for i, j in caminho:
+                x1 = j * self.cell_size
+                y1 = i * self.cell_size
+                x2 = x1 + self.cell_size
+                y2 = y1 + self.cell_size
+                canvas.create_rectangle(x1, y1, x2, y2,
+                                       fill=self.cores['L'], outline='red', width=2)
+            # Marca posição inicial
+            if caminho:
+                start_i, start_j = caminho[0]
+                x = start_j * self.cell_size + self.cell_size // 2
+                y = start_i * self.cell_size + self.cell_size // 2
+                canvas.create_oval(x-5, y-5, x+5, y+5, fill='green', outline='darkgreen', width=2)
+                canvas.create_text(x, y, text="L", font=('Arial', 8, 'bold'), fill='white')
+
     def animar_caminho(self):
-        """Inicia a animação do caminho"""
-        if not self.melhor_caminho:
-            messagebox.showwarning("Aviso", "Calcule o caminho primeiro!")
-            return
-        
+        """Inicia a animação do caminho na aba ativa"""
+        aba = self.notebook.index(self.notebook.select())
+        if aba == 0:
+            if not self.melhor_caminho:
+                messagebox.showwarning("Aviso", "Calcule o caminho primeiro!")
+                return
+        elif aba in [1,2,3]:
+            idx = aba-1
+            if not self.caminhos_masmorras[idx]:
+                messagebox.showwarning("Aviso", "Calcule o caminho da masmorra primeiro!")
+                return
         if self.animando:
             return
-        
         self.animando = True
-        
-        # Executa animação em thread separada
-        thread = threading.Thread(target=self._executar_animacao)
+        thread = threading.Thread(target=lambda: self._executar_animacao_aba(aba))
         thread.daemon = True
         thread.start()
-    
-    def _executar_animacao(self):
-        """Executa a animação do movimento de Link"""
+
+    def _executar_animacao_aba(self, aba):
         try:
-            # Redesenha o mapa base
-            self.root.after(0, self.desenhar_mapa)
-            
-            # Desenha caminho completo em cinza claro
-            self.root.after(100, self._desenhar_caminho_completo)
-            
-            # Anima Link movendo-se pelo caminho principal
-            for i, (pos_i, pos_j) in enumerate(self.melhor_caminho):
-                if not self.animando:
-                    break
-                    
-                if 0 <= pos_i < 42 and 0 <= pos_j < 42:
-                    # Atualiza posição de Link
-                    self.root.after(0, self._atualizar_posicao_link, pos_i, pos_j, i, False)
-                    
-                time.sleep(0.1)  # Velocidade da animação
-            
-            # Se a animação foi interrompida, sair
-            if not self.animando:
-                return
-            
-            # Anima as masmorras na ordem correta
-            for idx in self.melhor_ordem:
-                # Desenha a masmorra
-                offset_x = 45 * self.cell_size  # Posição à direita do mapa principal
-                offset_y = idx * 30 * self.cell_size  # Espaço vertical entre masmorras
-                
-                self.root.after(0, self._desenhar_masmorra_completa, idx, offset_x, offset_y)
-                
-                # Anima o caminho na masmorra
-                for step, (pos_i, pos_j) in enumerate(self.caminhos_masmorras[idx]):
+            if aba == 0:
+                self.root.after(0, self.desenhar_mapa)
+                canvas = self.canvas_tabs[0]
+                for i, (pos_i, pos_j) in enumerate(self.melhor_caminho):
                     if not self.animando:
                         break
-                        
-                    self.root.after(0, self._atualizar_posicao_masmorra, idx, pos_i, pos_j, step, offset_x, offset_y)
-                    time.sleep(0.05)  # Velocidade mais rápida para masmorras
-            
-            if self.animando:
-                self.root.after(0, lambda: self.info_label.config(
-                    text=f"Animação concluída! Custo total: {self.menor_custo}\n" +
-                    f"Masmorra 1: {self.custos_masmorras[0]} | " +
-                    f"Masmorra 2: {self.custos_masmorras[1]} | " +
-                    f"Masmorra 3: {self.custos_masmorras[2]}"
-                ))
-            
+                    self.root.after(0, self._atualizar_posicao_link, pos_i, pos_j, i)
+                    time.sleep(0.1)
+                if self.animando:
+                    self.root.after(0, lambda: self.info_label.config(text="Animação concluída no mapa principal!"))
+            elif aba in [1,2,3]:
+                idx = aba-1
+                masmorra = [self.masmorra1, self.masmorra2, self.masmorra3][idx]
+                self.root.after(0, lambda: self.desenhar_masmorra(masmorra, idx))
+                canvas = self.canvas_tabs[aba]
+                caminho = self.caminhos_masmorras[idx]
+                for step, (pos_i, pos_j) in enumerate(caminho):
+                    if not self.animando:
+                        break
+                    self.root.after(0, self._atualizar_posicao_masmorra, idx, pos_i, pos_j, step)
+                    time.sleep(0.05)
+                if self.animando:
+                    self.root.after(0, lambda: self.info_label.config(text=f"Animação concluída na Masmorra {idx+1}!"))
         except Exception as e:
             self.root.after(0, lambda: messagebox.showerror("Erro", f"Erro na animação: {e}"))
         finally:
             self.animando = False
-    
-    def _desenhar_masmorra_completa(self, idx, offset_x, offset_y):
-        """Desenha uma masmorra completa no canvas"""
-        masmorra = [self.masmorra1, self.masmorra2, self.masmorra3][idx]
-        self.desenhar_masmorra(masmorra, offset_x, offset_y)
-        
-        # Adiciona título
-        self.canvas.create_text(
-            offset_x + 14 * self.cell_size, 
-            offset_y - 10, 
-            text=f"Masmorra {idx+1} (Custo: {self.custos_masmorras[idx]})", 
-            font=('Arial', 10, 'bold'), 
-            fill='black',
-            anchor=tk.CENTER
-        )
-    
-    def _desenhar_caminho_completo(self):
-        """Desenha o caminho completo em cinza claro"""
-        for i, j in self.melhor_caminho:
-            if 0 <= i < 42 and 0 <= j < 42:
-                x1 = j * self.cell_size
-                y1 = i * self.cell_size
-                x2 = x1 + self.cell_size
-                y2 = y1 + self.cell_size
-                
-                self.canvas.create_rectangle(x1, y1, x2, y2, 
-                                           fill='lightgray', outline='gray', width=1,
-                                           tags="caminho")
-    
-    def _atualizar_posicao_link(self, pos_i, pos_j, step, em_masmorra=False):
-        """Atualiza a posição de Link no canvas"""
-        # Remove Link anterior
-        self.canvas.delete("link")
-        
-        # Desenha novo Link
+
+    def _atualizar_posicao_link(self, pos_i, pos_j, step):
+        """Atualiza a posição de Link no canvas do mapa principal"""
+        canvas = self.canvas_tabs[0]
+        canvas.delete("link")
         x = pos_j * self.cell_size + self.cell_size // 2
         y = pos_i * self.cell_size + self.cell_size // 2
-        
-        # Cor diferente para masmorra
-        cor_fill = 'blue' if em_masmorra else 'lime'
-        cor_outline = 'darkblue' if em_masmorra else 'darkgreen'
-        
-        # Link como círculo
-        self.canvas.create_oval(x-6, y-6, x+6, y+6, 
-                               fill=cor_fill, outline=cor_outline, width=2, tags="link")
-        self.canvas.create_text(x, y, text="L", font=('Arial', 8, 'bold'), 
-                               fill=cor_outline, tags="link")
-        
-        # Atualiza informação
+        canvas.create_oval(x-6, y-6, x+6, y+6,
+                           fill='lime', outline='darkgreen', width=2, tags="link")
+        canvas.create_text(x, y, text="L", font=('Arial', 8, 'bold'),
+                           fill='darkgreen', tags="link")
         total_steps = len(self.melhor_caminho)
         progresso = (step + 1) / total_steps * 100
         self.info_label.config(text=f"Animando... {step+1}/{total_steps} ({progresso:.1f}%)")
-        
-        # Centraliza view no Link
-        self.canvas.see(self.canvas.create_rectangle(x-50, y-50, x+50, y+50))
-    
-    def _atualizar_posicao_masmorra(self, idx, pos_i, pos_j, step, offset_x, offset_y):
-        """Atualiza a posição de Link na masmorra"""
-        # Remove Link anterior na masmorra
-        self.canvas.delete(f"link_masmorra_{idx}")
-        
-        # Desenha novo Link na masmorra
-        x = pos_j * self.cell_size + offset_x + self.cell_size // 2
-        y = pos_i * self.cell_size + offset_y + self.cell_size // 2
-        
-        # Link como círculo azul na masmorra
-        self.canvas.create_oval(x-5, y-5, x+5, y+5, 
-                               fill='blue', outline='darkblue', width=2, 
-                               tags=f"link_masmorra_{idx}")
-        self.canvas.create_text(x, y, text="L", font=('Arial', 8, 'bold'), 
-                               fill='white', tags=f"link_masmorra_{idx}")
-        
-        # Atualiza informação
+        canvas.see(canvas.create_rectangle(x-50, y-50, x+50, y+50))
+
+    def _atualizar_posicao_masmorra(self, idx, pos_i, pos_j, step):
+        """Atualiza a posição de Link na aba da masmorra"""
+        canvas = self.canvas_tabs[idx+1]
+        canvas.delete(f"link_masmorra_{idx}")
+        x = pos_j * self.cell_size + self.cell_size // 2
+        y = pos_i * self.cell_size + self.cell_size // 2
+        canvas.create_oval(x-5, y-5, x+5, y+5,
+                           fill='blue', outline='darkblue', width=2,
+                           tags=f"link_masmorra_{idx}")
+        canvas.create_text(x, y, text="L", font=('Arial', 8, 'bold'),
+                           fill='white', tags=f"link_masmorra_{idx}")
         total_steps = len(self.caminhos_masmorras[idx])
         progresso = (step + 1) / total_steps * 100
         self.info_label.config(
             text=f"Explorando Masmorra {idx+1}... {step+1}/{total_steps} ({progresso:.1f}%)\n" +
             f"Custo: {self.custos_masmorras[idx]}"
         )
-    
+
     def parar_animacao(self):
         """Para a animação"""
         self.animando = False
