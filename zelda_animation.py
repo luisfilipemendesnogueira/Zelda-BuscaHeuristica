@@ -167,6 +167,7 @@ class ZeldaPathFinder:
 
         # Redesenha o mapa original limpo
         self.desenhar_mapa()
+        self.desenhar_link_inicial()
         self.canvas.delete("link_icon")
 
         # Reseta os labels de informação
@@ -189,6 +190,24 @@ class ZeldaPathFinder:
         except (FileNotFoundError, ValueError) as e:
             messagebox.showerror("Erro ao Carregar Mapas", str(e))
             self.info_label.config(text="Erro ao carregar mapas.")
+
+    def desenhar_link_inicial(self):
+        """Desenha o Link na posição inicial do mapa."""
+        if not self.mapa or not self.link_img:
+            return
+
+        # Encontra a posição inicial 'L' no mapa
+        for i, row in enumerate(self.mapa):
+            for j, cel in enumerate(row):
+                if cel == "L":
+                    x = j * self.cell_size + self.cell_size / 2
+                    y = i * self.cell_size + self.cell_size / 2
+                    self.canvas.create_image(
+                        x, y,
+                        image=self.link_img,
+                        tags=("link_inicial", "mapa_principal-img-L")
+                    )
+                    return
 
     def desenhar_mapa(self, mapa_data=None, offset_x=0, offset_y=0, tags="mapa_principal",
                       dungeon_id=None):
@@ -213,14 +232,14 @@ class ZeldaPathFinder:
                 )
 
                 img_to_draw = None
+                if cel == "L" and self.link_img and not self.animando:
+                    img_to_draw = self.link_img
                 if cel == "LW" and self.lost_woods_img:
                     img_to_draw = self.lost_woods_img
                 elif cel in ["MA", "M1", "M2", "M3"] and self.ma_img:
                     img_to_draw = self.ma_img
                 elif cel == "MS" and self.ms_img:
                     img_to_draw = self.ms_img
-                elif cel == "L" and self.link_img:
-                    img_to_draw = self.link_img
                 elif cel == "E" and self.entrada_img:
                     img_to_draw = self.entrada_img
                 elif cel == "P" and dungeon_id is not None and self.pingente_imgs[dungeon_id-1]:
@@ -263,6 +282,12 @@ class ZeldaPathFinder:
                 for i, r in enumerate(self.mapa)
                 for j, c in enumerate(r)
                 if c == "LW"
+            )
+            master_sword = next(
+                (i, j)
+                for i, r in enumerate(self.mapa)
+                for j, c in enumerate(r)
+                if c == "MS"
             )
             try:
                 entrada1 = next((i, j) for i,
@@ -357,12 +382,24 @@ class ZeldaPathFinder:
                 if caminho_inviavel:
                     continue
 
-                caminho_final, custo_final = a_star(self.mapa, pos, lost_woods, self.terrain_costs)
-                if caminho_final is None:
-                    continue
+                # Etapa 1: Da última masmorra para Lost Woods
+                caminho_para_lw, custo_para_lw = a_star(self.mapa, pos,
+                                                        lost_woods, self.terrain_costs)
+                if caminho_para_lw is None:
+                    continue # Se não consegue chegar em LW, essa permutação é inválida
 
-                total_custo_atual += custo_final
-                percurso_completo_atual.append({"type": "main_map", "path": caminho_final[1:]})
+                total_custo_atual += custo_para_lw
+                percurso_completo_atual.append({"type": "main_map", "path": caminho_para_lw[1:]})
+
+                # Etapa 2: De Lost Woods para a Master Sword
+                caminho_para_ms, custo_para_ms = a_star(self.mapa, lost_woods,
+                                                        master_sword, self.terrain_costs)
+                if caminho_para_ms is None:
+                    continue # Se não consegue chegar na MS, essa permutação é inválida
+
+                total_custo_atual += custo_para_ms
+                percurso_completo_atual.append({"type": "main_map",
+                                                "path": caminho_para_ms[1:]})
 
                 if total_custo_atual < menor_custo:
                     menor_custo = total_custo_atual
@@ -401,6 +438,10 @@ class ZeldaPathFinder:
             return
         if self.animando:
             return
+
+        # Remove a imagem fixa inicial do Link
+        self.canvas.delete("link_inicial")  # Remove a imagem estática do Link
+
         self.animando = True
         self.pause_event.set() # Garante que a animação comece (não pausada)
 
@@ -495,7 +536,9 @@ class ZeldaPathFinder:
                     self.root.after(0, lambda tag=tag_masmorra: self.canvas.delete(tag))
 
             if self.animando:
-                self.root.after(0, lambda: self.info_label.config(text="Animação concluída!"))
+                self.root.after(0,
+                                lambda: self.info_label.config(text="Link encontrou a Master Sword!"
+                                                                  "\nAnimação concluída!"))
         except InterruptedError:
             self.root.after(0, lambda: self.info_label.config(text="Animação interrompida."))
         except tk.TclError as e:
@@ -542,34 +585,32 @@ class ZeldaPathFinder:
                     # Caso algum tipo específico ainda não aceite, ignore sem quebrar
                     pass
 
-        # Desenha o ícone do Link por cima
-        self.canvas.create_oval(
-            x - 5,
-            y - 5,
-            x + 5,
-            y + 5,
-            fill="#228B22",
-            outline="darkgreen",
-            width=1.5,
-            tags="link_icon",
-        )
+        # Desenha a imagem do Link (se existir) em vez da bolinha verde
+        if self.link_img:
+            self.canvas.create_image(
+                x, y,
+                image=self.link_img,
+                tags="link_icon"
+            )
+        else:
+            # Fallback: desenha a bolinha verde se a imagem não carregar
+            self.canvas.create_oval(
+                x - 5, y - 5,
+                x + 5, y + 5,
+                fill="#228B22",
+                outline="darkgreen",
+                width=1.5,
+                tags="link_icon"
+            )
 
-        if self.animando:
-            # Tenta centralizar a visão no Link
+        # Centraliza a visão no Link durante a animação
+        if self.animando and self.link_img:
             try:
-                bbox = self.canvas.bbox("all")
-                if bbox:
-                    total_width = bbox[2] - bbox[0]
-                    total_height = bbox[3] - bbox[1]
-                    if total_width > 0 and total_height > 0:
-                        self.canvas.xview_moveto(
-                            max(0, (x - self.canvas.winfo_width() / 2) / total_width)
-                        )
-                        self.canvas.yview_moveto(
-                            max(0, (y - self.canvas.winfo_height() / 2) / total_height)
-                        )
-            except (tk.TclError, ZeroDivisionError):
-                # Ignora erros que podem ocorrer durante o setup inicial do canvas
+                img_width = self.link_img.width() / 2
+                img_height = self.link_img.height() / 2
+                self.canvas.xview_moveto(max(0, (x - img_width) / self.canvas.winfo_width()))
+                self.canvas.yview_moveto(max(0, (y - img_height) / self.canvas.winfo_height()))
+            except (tk.TclError, AttributeError):
                 pass
 
     def parar_animacao(self):

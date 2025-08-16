@@ -15,6 +15,7 @@ TERRAIN_COSTS = {
     "M": 150,  # Montanha
     "A": 180,  # Água
     "LW": 10,  # Lost Woods (entrada especial)
+    "MS": 10,  # Master Sword
     "MA": 20,  # Masmorra (entrada)
     "M1": 20,  # Entrada Masmorra 1
     "M2": 20,  # Entrada Masmorra 2
@@ -136,6 +137,9 @@ def main():
     lost_woods = next(
         (i, j) for i, r in enumerate(mapa) for j, c in enumerate(r) if c == "LW"
     )
+    master_sword = next(
+        (i, j) for i, r in enumerate(mapa) for j, c in enumerate(r) if c == "MS"
+    )
     try:
         entrada1 = next((i, j) for i, r in enumerate(mapa) for j, c in enumerate(r) if c == "M1")
         entrada2 = next((i, j) for i, r in enumerate(mapa) for j, c in enumerate(r) if c == "M2")
@@ -223,12 +227,21 @@ def main():
         if caminho_inviavel:
             continue
 
-        caminho, custo = a_star(mapa, pos, lost_woods, TERRAIN_COSTS)
-        if caminho is None:
+        # Etapa 1: Da última masmorra para Lost Woods
+        caminho_lw, custo_lw = a_star(mapa, pos, lost_woods, TERRAIN_COSTS)
+        if caminho_lw is None:
             continue
 
-        total_caminho += caminho[1:]
-        total_custo += custo
+        total_caminho += caminho_lw[1:]
+        total_custo += custo_lw
+
+        # Etapa 2: De Lost Woods para a Master Sword
+        caminho_ms, custo_ms = a_star(mapa, lost_woods, master_sword, TERRAIN_COSTS)
+        if caminho_ms is None:
+            continue
+
+        total_caminho += caminho_ms[1:]
+        total_custo += custo_ms
 
         if total_custo < menor_custo:
             menor_custo = total_custo
