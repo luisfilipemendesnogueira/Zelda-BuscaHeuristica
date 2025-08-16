@@ -77,7 +77,7 @@ def vizinhos(pos, size):
             yield (nx, ny)
 
 
-def a_star(mapa, start, goal, terrain_costs, walkable=None):
+def a_estrela(mapa, start, goal, terrain_costs, walkable=None):
     """Busca A* genérica que retorna (caminho, custo) ou (None, inf)."""
     size = len(mapa)
     if not (
@@ -171,7 +171,7 @@ def main():
 
         caminho_inviavel = False
         for idx in range(3):
-            caminho, custo = a_star(mapa, pos, entradas_ordem[idx], TERRAIN_COSTS)
+            caminho, custo = a_estrela(mapa, pos, entradas_ordem[idx], TERRAIN_COSTS)
             if caminho is None:
                 caminho_inviavel = True
                 break
@@ -193,7 +193,7 @@ def main():
             custos_dungeon = {"CC": MASMORRA_COST, "P": MASMORRA_COST, "E": MASMORRA_COST}
             walkable_dungeon = {"CC", "P", "E"}
 
-            caminho_m, custo_m = a_star(
+            caminho_m, custo_m = a_estrela(
                 masmorras_ordem[idx],
                 entrada_masmorra,
                 pingentes_ordem[idx],
@@ -223,7 +223,7 @@ def main():
         if caminho_inviavel:
             continue
 
-        caminho, custo = a_star(mapa, pos, lost_woods, TERRAIN_COSTS)
+        caminho, custo = a_estrela(mapa, pos, lost_woods, TERRAIN_COSTS)
         if caminho is None:
             continue
 

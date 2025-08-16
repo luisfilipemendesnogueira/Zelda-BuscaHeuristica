@@ -10,7 +10,7 @@ import time
 from itertools import permutations
 
 # Importa as funções e constantes do seu outro arquivo
-from zelda_pathfinder import ler_mapa, a_star, TERRAIN_COSTS, MASMORRA_COST
+from zelda_pathfinder import ler_mapa, a_estrela, TERRAIN_COSTS, MASMORRA_COST
 
 
 class ZeldaPathFinder:
@@ -300,7 +300,7 @@ class ZeldaPathFinder:
 
                 for i_idx in range(3):
                     masmorra_idx = ordem[i_idx]
-                    caminho_mapa, custo_mapa = a_star(
+                    caminho_mapa, custo_mapa = a_estrela(
                         self.mapa, pos, entradas[masmorra_idx], self.terrain_costs
                     )
                     if caminho_mapa is None:
@@ -332,7 +332,7 @@ class ZeldaPathFinder:
                     }
                     walkable_m = {"CC", "P", "E"}
 
-                    caminho_ida, custo_ida = a_star(
+                    caminho_ida, custo_ida = a_estrela(
                         masmorra_atual, entrada_m, pingentes[masmorra_idx], custos_m, walkable_m
                     )
                     if caminho_ida is None:
@@ -357,7 +357,7 @@ class ZeldaPathFinder:
                 if caminho_inviavel:
                     continue
 
-                caminho_final, custo_final = a_star(self.mapa, pos, lost_woods, self.terrain_costs)
+                caminho_final, custo_final = a_estrela(self.mapa, pos, lost_woods, self.terrain_costs)
                 if caminho_final is None:
                     continue
 
