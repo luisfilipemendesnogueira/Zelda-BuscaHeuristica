@@ -29,12 +29,20 @@ class ZeldaPathFinder:
             self.ma_img = self.resize_image(tk.PhotoImage(file="MA.png"), 10)
             self.ms_img = self.resize_image(tk.PhotoImage(file="MS.png"), 12)
             self.link_img = self.resize_image(tk.PhotoImage(file="Link.png"), 15)
+            self.entrada_img = self.resize_image(tk.PhotoImage(file="E.png"), 12)
+            self.pingente_imgs = [
+                self.resize_image(tk.PhotoImage(file="P1.png"), 12),
+                self.resize_image(tk.PhotoImage(file="P2.png"), 12),
+                self.resize_image(tk.PhotoImage(file="P3.png"), 12),
+            ]
         except tk.TclError:
             messagebox.showwarning(
                 "Imagens não encontradas",
                 "Algumas imagens (.png) não foram encontradas.",
             )
             self.lost_woods_img = self.ma_img = self.ms_img = self.link_img = None
+            self.entrada_img = None
+            self.pingente_imgs = [None, None, None]
 
         self.cores = {
             "G": "#92d050",
@@ -48,15 +56,13 @@ class ZeldaPathFinder:
             "MS": "#92d050",
             "X": "#3e2f0f",
             "CC": "#D3D3D3",
-            "P": "#FF1493",
+            "P": "#D3D3D3",
             "E": "#00FF00",
         }
 
-        # As constantes agora são importadas
         self.terrain_costs = TERRAIN_COSTS
         self.masmorra_cost = MASMORRA_COST
 
-        # atributos iniciais para evitar W0201 (attribute-defined-outside-init)
         self.cell_size = 15
         self.mapa = None
         self.masmorra1 = None
@@ -65,6 +71,8 @@ class ZeldaPathFinder:
         self.melhor_percurso_completo = None
         self.animando = False
 
+        # Evento para controlar o estado de pausa/continuação da animação
+        self.pause_event = threading.Event()
         self.setup_ui()
         self.carregar_mapas()
 
@@ -101,13 +109,26 @@ class ZeldaPathFinder:
         )
         self.animar_btn.pack(side=tk.LEFT, padx=(0, 5))
 
-        self.parar_btn = ttk.Button(
-            control_frame,
-            text="Parar Animação",
-            command=self.parar_animacao,
-            state=tk.DISABLED,
+        # Botão de "Parar" agora é "Pausar"
+        self.pausar_btn = ttk.Button(
+            control_frame, text="Pausar Animação", command=self.pausar_animacao, state=tk.DISABLED
         )
-        self.parar_btn.pack(side=tk.LEFT, padx=(0, 5))
+        self.pausar_btn.pack(side=tk.LEFT, padx=(0, 5))
+
+        # Novo botão "Continuar"
+        self.continuar_btn = ttk.Button(
+            control_frame,
+            text="Continuar Animação",
+            command=self.continuar_animacao,
+            state=tk.DISABLED
+        )
+        self.continuar_btn.pack(side=tk.LEFT, padx=(0, 5))
+
+        # Novo botão "Resetar"
+        self.reset_btn = ttk.Button(
+            control_frame, text="Resetar", command=self.resetar_aplicacao
+        )
+        self.reset_btn.pack(side=tk.LEFT, padx=(0, 5))
 
         self.info_label = ttk.Label(main_frame, text="...", font=("Segoe UI", 10))
         self.info_label.pack(fill=tk.X)
@@ -131,23 +152,43 @@ class ZeldaPathFinder:
         v_scroll.pack(side=tk.RIGHT, fill=tk.Y)
         self.canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
+    # Nova função para resetar o estado da aplicação
+    def resetar_aplicacao(self):
+        """Reseta a aplicação para o estado inicial após carregar os mapas."""
+        # Para qualquer animação em andamento
+        self.animando = False
+        self.pause_event.set() # Libera a thread se estiver pausada para que ela termine
+
+        # Limpa dados do caminho calculado
+        self.melhor_percurso_completo = None
+
+        # Redesenha o mapa original limpo
+        self.desenhar_mapa()
+        self.canvas.delete("link_icon")
+
+        # Reseta os labels de informação
+        self.info_label.config(text="Mapas carregados. Clique em 'Calcular Melhor Caminho'.")
+        self.custos_label.config(text="")
+
+        # Reseta o estado dos botões
+        self.animar_btn.config(state=tk.DISABLED)
+        self.pausar_btn.config(state=tk.DISABLED)
+        self.continuar_btn.config(state=tk.DISABLED)
+
     def carregar_mapas(self):
         """Carrega os mapas a partir de arquivos de texto."""
         try:
-            # A função ler_mapa importada agora levanta exceções que podemos capturar
             self.mapa = ler_mapa("Mapa.txt", 42)
             self.masmorra1 = ler_mapa("Masmorra 1.txt", 28)
             self.masmorra2 = ler_mapa("Masmorra 2.txt", 28)
             self.masmorra3 = ler_mapa("Masmorra 3.txt", 28)
-            self.info_label.config(
-                text="Mapas carregados. Clique em 'Calcular Melhor Caminho'."
-            )
-            self.desenhar_mapa()
+            self.resetar_aplicacao() # Chama o reset para garantir um estado limpo
         except (FileNotFoundError, ValueError) as e:
             messagebox.showerror("Erro ao Carregar Mapas", str(e))
             self.info_label.config(text="Erro ao carregar mapas.")
 
-    def desenhar_mapa(self, mapa_data=None, offset_x=0, offset_y=0, tags="mapa_principal"):
+    def desenhar_mapa(self, mapa_data=None, offset_x=0, offset_y=0, tags="mapa_principal",
+                      dungeon_id=None):
         """Desenha um mapa (principal ou masmorra) no canvas."""
         if mapa_data is None:
             mapa_data = self.mapa
@@ -177,9 +218,13 @@ class ZeldaPathFinder:
                     img_to_draw = self.ms_img
                 elif cel == "L" and self.link_img:
                     img_to_draw = self.link_img
+                elif cel == "E" and self.entrada_img:
+                    img_to_draw = self.entrada_img
+                elif cel == "P" and dungeon_id is not None and self.pingente_imgs[dungeon_id-1]:
+                    img_to_draw = self.pingente_imgs[dungeon_id-1]
+
 
                 if img_to_draw:
-                    # tag separada para a imagem para evitar conflito com a tag do retângulo
                     img_tag = (tags, f"{tags}-img-{i}-{j}")
                     self.canvas.create_image(
                         x1 + self.cell_size / 2,
@@ -318,9 +363,7 @@ class ZeldaPathFinder:
 
             self.melhor_percurso_completo = melhor_percurso_final
             self.root.after(0, self.update_ui_apos_calculo)
-        except Exception as e:  # pylint: disable=broad-except
-            # Mantemos um catch-all aqui porque a thread não pode propagar a exceção.
-            # Documentado: usamos disable para não mascarar bugs sem razão.
+        except (ValueError, FileNotFoundError) as e:
             self.root.after(0, lambda: messagebox.showerror("Erro de Cálculo", str(e)))
 
     def update_ui_apos_calculo(self):
@@ -345,11 +388,29 @@ class ZeldaPathFinder:
         if self.animando:
             return
         self.animando = True
+        self.pause_event.set() # Garante que a animação comece (não pausada)
+
         self.animar_btn.config(state=tk.DISABLED)
-        self.parar_btn.config(state=tk.NORMAL)
+        self.pausar_btn.config(state=tk.NORMAL)
+        self.continuar_btn.config(state=tk.DISABLED)
+
         thread = threading.Thread(target=self._executar_animacao)
         thread.daemon = True
         thread.start()
+
+    def pausar_animacao(self):
+        """Pausa a animação."""
+        self.pause_event.clear() # Bloqueia a thread na próxima verificação
+        self.info_label.config(text="Animação pausada.")
+        self.pausar_btn.config(state=tk.DISABLED)
+        self.continuar_btn.config(state=tk.NORMAL)
+
+    def continuar_animacao(self):
+        """Continua a animação."""
+        self.pause_event.set() # Desbloqueia a thread
+        self.info_label.config(text="Continuando animação...")
+        self.pausar_btn.config(state=tk.NORMAL)
+        self.continuar_btn.config(state=tk.DISABLED)
 
     def _executar_animacao(self):
         """Executa a animação de cada segmento do percurso."""
@@ -359,13 +420,14 @@ class ZeldaPathFinder:
 
             for segment in self.melhor_percurso_completo["segmentos"]:
                 if not self.animando:
-                    raise InterruptedError()
+                    break
 
                 if segment["type"] == "main_map":
                     self.info_label.config(text="Percorrendo Hyrule...")
                     for pos in segment["path"]:
+                        self.pause_event.wait() # ALTERAÇÃO: Ponto de pausa
                         if not self.animando:
-                            raise InterruptedError()
+                            break
                         self.root.after(0, self._atualizar_posicao_link, pos, "mapa_principal")
                         time.sleep(0.04)
 
@@ -385,6 +447,7 @@ class ZeldaPathFinder:
                         offset_x,
                         offset_y,
                         tag_masmorra,
+                        masmorra_info['id']
                     )
                     self.root.after(
                         0,
@@ -397,9 +460,9 @@ class ZeldaPathFinder:
                     time.sleep(0.2)
 
                     for pos in masmorra_info["path"]:
+                        self.pause_event.wait() # ALTERAÇÃO: Ponto de pausa
                         if not self.animando:
-                            raise InterruptedError()
-                        # capturar os valores atuais na chamada (evita cell-var-from-loop)
+                            break
                         self.root.after(
                             0,
                             self._atualizar_posicao_link,
@@ -410,20 +473,25 @@ class ZeldaPathFinder:
                         )
                         time.sleep(0.04)
 
+                    if not self.animando:
+                        break
                     self.info_label.config(text=f"Saindo da Masmorra {masmorra_info['id']}...")
                     time.sleep(0.5)
                     # fix: evita problemas com lambda capturando var do loop
                     self.root.after(0, lambda tag=tag_masmorra: self.canvas.delete(tag))
 
-            self.root.after(0, lambda: self.info_label.config(text="Animação concluída!"))
+            if self.animando:
+                self.root.after(0, lambda: self.info_label.config(text="Animação concluída!"))
         except InterruptedError:
             self.root.after(0, lambda: self.info_label.config(text="Animação interrompida."))
-        except Exception as e:  # pylint: disable=broad-except
+        except tk.TclError as e:
             self.root.after(0, lambda: messagebox.showerror("Erro de Animação", str(e)))
         finally:
             self.animando = False
+            # Lógica para resetar o estado dos botões ao final
             self.root.after(0, lambda: self.animar_btn.config(state=tk.NORMAL))
-            self.root.after(0, lambda: self.parar_btn.config(state=tk.DISABLED))
+            self.root.after(0, lambda: self.pausar_btn.config(state=tk.DISABLED))
+            self.root.after(0, lambda: self.continuar_btn.config(state=tk.DISABLED))
 
     def _desenhar_titulo_masmorra(self, masmorra_info, offset_x, offset_y, tags):
         """Desenha o título da masmorra próximo à visualização desenhada."""
@@ -498,4 +566,4 @@ class ZeldaPathFinder:
 if __name__ == "__main__":
     root = tk.Tk()
     app = ZeldaPathFinder(root)
-    root.mainloop()git
+    root.mainloop()

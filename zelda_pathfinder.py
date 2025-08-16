@@ -1,5 +1,5 @@
-"""Módulo de pathfinding para o projeto Zelda.
-
+"""
+Módulo de pathfinding para o projeto Zelda.
 Contém leitura de mapas, implementação A* e utilitários para
 exibir caminhos no terminal.
 """
