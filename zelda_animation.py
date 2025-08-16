@@ -1,8 +1,3 @@
-"""
-Interface de animação do Zelda - mostra caminhos calculados
-pelo módulo zelda_pathfinder e permite animar a movimentação.
-"""
-
 import tkinter as tk
 from tkinter import ttk, messagebox
 import threading
