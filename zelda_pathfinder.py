@@ -15,7 +15,10 @@ TERRAIN_COSTS = {
     "M": 150,  # Montanha
     "A": 180,  # Água
     "LW": 10,  # Lost Woods (entrada especial)
-    "MA": 20,  # Entrada de masmorra
+    "MA": 20,  # Masmorra (entrada)
+    "M1": 20,  # Entrada Masmorra 1
+    "M2": 20,  # Entrada Masmorra 2
+    "M3": 20,  # Entrada Masmorra 3
 }
 
 MASMORRA_COST = 10  # Caminho claro dentro das masmorras
@@ -133,9 +136,14 @@ def main():
     lost_woods = next(
         (i, j) for i, r in enumerate(mapa) for j, c in enumerate(r) if c == "LW"
     )
-    entradas = sorted(
-        [(i, j) for i, r in enumerate(mapa) for j, c in enumerate(r) if c == "MA"]
-    )
+    try:
+        entrada1 = next((i, j) for i, r in enumerate(mapa) for j, c in enumerate(r) if c == "M1")
+        entrada2 = next((i, j) for i, r in enumerate(mapa) for j, c in enumerate(r) if c == "M2")
+        entrada3 = next((i, j) for i, r in enumerate(mapa) for j, c in enumerate(r) if c == "M3")
+        entradas = [entrada1, entrada2, entrada3]
+    except StopIteration as exc:
+        raise ValueError("Erro: Não foi possível encontrar as entradas M1, M2 e M3 "
+                         "no Mapa.txt.") from exc
 
     if start is None or lost_woods is None or len(entradas) < 3:
         raise ValueError("Não foi possível encontrar todos os pontos de interesse no mapa.")

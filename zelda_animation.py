@@ -52,12 +52,15 @@ class ZeldaPathFinder:
             "A": "#548dd4",
             "LW": "#92d050",
             "MA": "#c4bc96",
+            "M1": "#c4bc96",
+            "M2": "#c4bc96",
+            "M3": "#c4bc96",
             "L": "#92d050",
             "MS": "#92d050",
             "X": "#3e2f0f",
             "CC": "#D3D3D3",
             "P": "#D3D3D3",
-            "E": "#00FF00",
+            "E": "#D3D3D3",
         }
 
         self.terrain_costs = TERRAIN_COSTS
@@ -212,7 +215,7 @@ class ZeldaPathFinder:
                 img_to_draw = None
                 if cel == "LW" and self.lost_woods_img:
                     img_to_draw = self.lost_woods_img
-                elif cel == "MA" and self.ma_img:
+                elif cel in ["MA", "M1", "M2", "M3"] and self.ma_img:
                     img_to_draw = self.ma_img
                 elif cel == "MS" and self.ms_img:
                     img_to_draw = self.ms_img
@@ -261,9 +264,20 @@ class ZeldaPathFinder:
                 for j, c in enumerate(r)
                 if c == "LW"
             )
-            entradas = sorted(
-                [(i, j) for i, r in enumerate(self.mapa) for j, c in enumerate(r) if c == "MA"]
-            )
+            try:
+                entrada1 = next((i, j) for i,
+                                r in enumerate(self.mapa) for j,
+                                c in enumerate(r) if c == "M1")
+                entrada2 = next((i, j) for i,
+                                r in enumerate(self.mapa) for j,
+                                c in enumerate(r) if c == "M2")
+                entrada3 = next((i, j) for i,
+                                r in enumerate(self.mapa) for j,
+                                c in enumerate(r) if c == "M3")
+                entradas = [entrada1, entrada2, entrada3]
+            except StopIteration as exc:
+                raise ValueError("Erro: Não foi possível encontrar as entradas M1, M2 e M3 "
+                                 "no Mapa.txt.") from exc
             pingentes = [
                 next(
                     (i, j)

@@ -1,1 +1,0 @@
-for ordem in perm
