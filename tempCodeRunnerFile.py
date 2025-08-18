@@ -22,7 +22,7 @@ def ler_mapa(path, size):
             linha = linha.strip()
             if linha:
                 mapa.append([x.strip() for x in linha.split(',')])
-    # Ajusta tamanho se necessário
+
     if len(mapa) != size:
         raise ValueError(f"Mapa {path} não tem tamanho {size}x{size}")
     return mapa
