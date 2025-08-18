@@ -1,5 +1,5 @@
 F,F,F,F,F,F,F,F,F,F,F,F,F,F,F,M,M,M,M,M,M,M,M,M,M,M,M,M,M,M,M,M,M,M,M,M,M,M,M,M,M,M
-F,G,MS,F,G,F,G,F,G,G,G,G,G,G,G,M,M,M,M,M,M,M,S,S,MA,S,S,M,M,M,M,M,M,S,S,S,S,M,M,M,M,M
+F,G,MS,F,G,F,G,F,G,G,G,G,G,G,G,M,M,M,M,M,M,M,S,S,M3,S,S,M,M,M,M,M,M,S,S,S,S,M,M,M,M,M
 F,G,G,F,G,G,G,F,G,F,G,G,G,G,G,G,G,M,M,M,M,S,S,S,S,S,S,S,M,M,M,M,S,S,S,S,S,S,M,M,M,M
 F,G,F,F,G,F,G,F,G,F,G,G,F,G,G,G,G,M,S,S,S,S,S,S,S,S,S,S,S,S,S,S,S,S,S,S,S,S,S,S,M,M
 F,G,G,G,G,F,G,F,G,F,G,G,F,G,G,G,G,M,S,M,M,S,S,S,S,S,S,S,M,M,M,M,S,S,S,S,S,S,M,M,M,M
@@ -15,7 +15,7 @@ F,G,G,F,G,G,F,G,G,G,G,G,G,G,G,G,G,F,F,F,G,G,G,F,F,F,F,G,G,G,A,G,G,G,G,G,G,F,G,F,
 F,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,A,G,F,G,F,G,F,F,G,F,G,M
 F,G,F,F,F,F,F,G,F,F,F,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,A,G,G,G,G,G,G,G,G,G,G,M
 F,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,A,A,A,A,A,A,A,A,A,A,G,G,G,G,G,M,M,M,M,M,M,M,M,M,M
-F,G,G,G,G,G,G,G,G,A,G,G,F,G,F,G,G,A,G,G,G,G,G,G,G,G,A,G,G,G,A,G,M,S,S,S,S,S,S,MA,S,M
+F,G,G,G,G,G,G,G,G,A,G,G,F,G,F,G,G,A,G,G,G,G,G,G,G,G,A,G,G,G,A,G,M,S,S,S,S,S,S,M2,S,M
 F,G,F,G,G,F,G,G,G,A,G,G,G,G,G,G,G,A,G,F,G,G,G,G,F,G,A,A,A,A,A,G,M,S,M,S,S,M,S,S,S,M
 F,G,F,G,G,F,G,G,G,A,G,G,F,G,F,G,G,G,G,G,G,G,G,G,G,G,A,G,G,G,G,G,M,S,M,M,M,M,M,M,M,M
 F,G,F,G,G,F,G,G,G,A,G,G,G,G,G,G,G,A,G,G,G,G,G,G,G,G,A,G,G,G,M,G,M,S,S,S,S,S,S,S,S,M
@@ -30,7 +30,7 @@ M,G,G,G,F,G,G,G,F,F,F,F,G,G,G,F,F,F,F,G,F,G,G,G,G,G,A,G,G,G,G,G,G,G,G,M,G,G,G,G,
 M,G,G,G,G,G,G,G,G,F,F,F,F,G,F,F,F,F,G,G,F,G,G,G,G,G,A,A,A,G,A,A,A,A,G,M,G,M,M,M,M,M
 M,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,A,G,G,G,G,G,G,G,M
 M,M,M,M,M,M,M,M,M,G,G,G,G,M,M,M,M,M,M,M,G,G,M,M,M,M,G,G,G,G,G,G,G,A,M,M,M,M,M,M,G,M
-M,S,S,S,S,MA,S,S,M,G,G,G,G,M,G,G,G,G,G,G,G,G,G,G,G,M,G,G,G,G,G,G,G,A,M,M,M,M,M,M,M,M
+M,S,S,S,S,M1,S,S,M,G,G,G,G,M,G,G,G,G,G,G,G,G,G,G,G,M,G,G,G,G,G,G,G,A,M,M,M,M,M,M,M,M
 M,S,M,M,S,S,S,S,M,G,G,G,G,M,G,G,G,G,G,G,G,G,F,G,G,M,G,G,A,A,A,A,A,A,A,A,M,M,A,A,M,M
 M,S,M,M,S,S,S,S,M,G,G,G,G,M,G,F,G,G,A,A,G,G,F,G,G,M,G,G,A,A,M,A,A,A,A,A,M,M,A,A,M,M
 M,S,S,S,S,S,S,S,M,G,G,M,G,M,G,G,G,G,A,A,G,G,F,G,G,M,G,G,A,A,A,A,M,M,A,A,M,M,A,A,M,M
