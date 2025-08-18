@@ -1,1 +1,0 @@
-        self.desenhar_link_inicial()
