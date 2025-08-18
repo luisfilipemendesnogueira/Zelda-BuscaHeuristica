@@ -4,7 +4,6 @@ import threading
 import time
 from itertools import permutations
 
-# Importa as funções e constantes do seu outro arquivo
 from zelda_pathfinder import ler_mapa, a_estrela, TERRAIN_COSTS, MASMORRA_COST
 
 
