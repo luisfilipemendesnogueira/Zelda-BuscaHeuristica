@@ -467,7 +467,7 @@ class ZeldaPathFinder:
                     )
                     time.sleep(0.2)
 
-                    for pos in masmorra_info["path"]:
+                    for pos_idx, pos in enumerate(masmorra_info["path"]):
                         self.pause_event.wait() # ALTERAÇÃO: Ponto de pausa
                         if not self.animando:
                             break
@@ -479,6 +479,20 @@ class ZeldaPathFinder:
                             offset_x,
                             offset_y,
                         )
+                        # NOVO: Remove o pingente visualmente ao coletar
+                        if (
+                            pos in [
+                                (i, j)
+                                for i, row in enumerate(masmorra_info["mapa"])
+                                for j, cel in enumerate(row)
+                                if cel == "P"
+                            ]
+                            and pos_idx == len(masmorra_info["path"]) // 2
+                        ):
+                            def remover_pingente():
+                                for item in self.canvas.find_withtag(f"{tag_masmorra}-img-{pos[0]}-{pos[1]}"):
+                                    self.canvas.delete(item)
+                            self.root.after(0, remover_pingente)
                         time.sleep(0.04)
 
                     if not self.animando:
